@@ -909,6 +909,7 @@ dependencies = [
  "futures-util",
  "reqwest",
  "reqwest-eventsource",
+ "serde_json",
  "tokio",
 ]
 

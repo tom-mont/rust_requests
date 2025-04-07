@@ -1,5 +1,6 @@
 use eventsource_stream::*;
 use futures_util::StreamExt;
+use serde_json::Value;
 use std::error::Error;
 
 #[tokio::main]
@@ -19,11 +20,15 @@ async fn run() -> Result<(), Box<dyn Error>> {
         .eventsource();
 
     while let Some(event) = stream.next().await {
-        match event {
-            Ok(event) => println!("received event[type={}]: {}", event.event, event.data),
-            Err(e) => eprintln!("error occured: {}", e),
-        }
+        pretty_print(&event.unwrap().data).await;
     }
+
+    Ok(())
+}
+
+async fn pretty_print(data: &String) -> Result<(), Box<dyn Error>> {
+    let v: Value = serde_json::from_str(data)?;
+    println!("id: {}\ntype: {}", v["id"], v["type"]);
 
     Ok(())
 }
