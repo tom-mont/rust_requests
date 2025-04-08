@@ -20,7 +20,8 @@ async fn run() -> Result<(), Box<dyn Error>> {
         .eventsource();
 
     while let Some(event) = stream.next().await {
-        pretty_print(&event.unwrap().data).await;
+        //println!("{}", &event.unwrap().data);
+        pretty_print(&event.unwrap().data).await?;
     }
 
     Ok(())
@@ -28,7 +29,13 @@ async fn run() -> Result<(), Box<dyn Error>> {
 
 async fn pretty_print(data: &String) -> Result<(), Box<dyn Error>> {
     let v: Value = serde_json::from_str(data)?;
-    println!("id: {}\ntype: {}", v["id"], v["type"]);
+    println!(
+        "id: {}\ntype: {}\ndisplay login: {}",
+        // Note the syntax for accessing nested JSON:
+        v["id"],
+        v["type"],
+        v["actor"]["display_login"]
+    );
 
     Ok(())
 }
