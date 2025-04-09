@@ -1,4 +1,4 @@
-use eventsource_stream::Event;
+use eventsource_stream::{Event, Eventsource};
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Result;
@@ -63,26 +63,33 @@ impl fmt::Display for GithubEvent {
 
 struct EventFetcher {
     client: reqwest::Client,
-    config: Arc<Config>,
+    config: Config,
 }
 
 impl EventFetcher {
-    fn new(config: Arc<Config>) -> Self {
+    fn new(config: Config) -> Self {
         Self {
             client: reqwest::Client::new(),
             config,
         }
     }
-    
-    async fn fetch_events(&self) -> Result<impl futures_util::Stream<Item = Result<Event, eventsource_stream::Error>>, AppError>> {
-        let response = self.client
+
+    async fn fetch_events(
+        &self,
+    ) -> std::result::Result<
+        impl futures_util::Stream<Item = std::result::Result<Event, String>>,
+        AppError,
+    > {
+        let response = self
+            .client
             .get(&self.config.api_url)
             .send()
             .await?
             .bytes_stream()
-            .eventsource();
+            .eventsource()
+            .map(|result| result.map_err(|e| e.to_string()));
 
-        Ok(reponse)
+        Ok(response)
     }
 }
 
@@ -93,10 +100,10 @@ impl EventProcessor {
         Self {}
     }
 
-    async fn process_event(&self, event: Event) -> Result<GithubEvent, AppError> {
+    async fn process_event(&self, event: Event) -> std::result::Result<GithubEvent, AppError> {
         let event_data = event.data;
-        let github_event: GithubEvent = serde_json::from_str(&event_data)
-            .map_err(AppError::JsonError)?;
+        let github_event: GithubEvent =
+            serde_json::from_str(&event_data).map_err(AppError::JsonError)?;
         Ok(github_event)
     }
 }
@@ -110,15 +117,15 @@ struct Application {
 impl Application {
     fn new(config: Config) -> Self {
         Self {
-            fetcher: EventFetcher::new(Arc<config>),
+            fetcher: EventFetcher::new(config.clone()),
             processor: EventProcessor::new(),
             config,
         }
     }
 
-    async fn run(&self) -> Result<(), AppError> {
+    async fn run(&self) -> std::result::Result<(), AppError> {
         let mut stream = self.fetcher.fetch_events().await?;
-        
+
         loop {
             tokio::select! {
                 Some(event_result) = stream.next() => {
@@ -140,22 +147,22 @@ impl Application {
                 }
             }
         }
-        
+
         Ok(())
     }
 }
 
-    #[tokio::main]
+#[tokio::main]
 async fn main() {
     // Setup logging (consider using a proper logging framework)
     println!("GitHub Event Monitor Starting...");
-    
+
     // Create config (could be loaded from file/env)
     let config = Config::default();
-    
+
     // Initialize and run application
     let app = Application::new(config);
-    
+
     if let Err(e) = app.run().await {
         eprintln!("Application error: {}", e);
         std::process::exit(1);
