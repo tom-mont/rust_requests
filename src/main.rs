@@ -1,10 +1,12 @@
 use eventsource_stream::{Event, Eventsource};
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
-use serde_json::Result;
-use std::{fmt, sync::Arc};
+// use serde_json::Result;
+use std::fmt;
 use thiserror::Error;
 use tokio::signal;
+
+// TODO fix up warnings
 
 // Custom error type for application
 #[derive(Error, Debug)]
